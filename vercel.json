@@ -8,7 +8,7 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://repan.ch data:; connect-src 'self' https://repan.ch; base-uri 'self'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://wp.repan.ch data:; connect-src 'self' https://wp.repan.ch; base-uri 'self'; form-action 'self'"
         }
       ]
     },
