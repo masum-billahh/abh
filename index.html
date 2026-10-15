@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="de" class="i18n-pending">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pickup Request</title>
+<link rel="stylesheet" href="assets/style.css">
+<noscript><style>.i18n-pending .top-bar, .i18n-pending .page { visibility: visible; }</style></noscript>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-bar-side"></div>
+  <div class="logo-placeholder" aria-hidden="true"><img style="width: 100%; height: 100%;" src="https://repan.ch/wp-content/uploads/2025/10/Logog.webp" alt=""></div>
+  <nav class="lang-switch top-bar-side" id="lang-switch" aria-label="Language"></nav>
+</div>
+
+<div class="page">
+  <div class="mark"></div>
+  <h1 data-i18n="heading"></h1>
+  <p class="subheading" data-i18n="subheading"></p>
+  <p class="weight-warning" data-i18n="weight_warning"></p>
+
+  <ol class="steps" id="steps">
+    <li class="step active" data-step="1" data-i18n="step_address"></li>
+    <li class="step" data-step="2" data-i18n="step_pickup"></li>
+    <li class="step" data-step="3" data-i18n="step_contact"></li>
+  </ol>
+
+  <form id="pickup-form" novalidate>
+
+    <!-- Step 1: Address -->
+    <section class="panel active" data-panel="1">
+      <div class="row">
+        <div class="field">
+          <label for="first_name" data-i18n="first_name"></label>
+          <input type="text" id="first_name" name="first_name" required autocomplete="given-name">
+        </div>
+        <div class="field">
+          <label for="last_name" data-i18n="last_name"></label>
+          <input type="text" id="last_name" name="last_name" required autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="company">
+          <span data-i18n="company"></span> <span class="tag">(<span data-i18n="optional"></span>)</span>
+        </label>
+        <input type="text" id="company" name="company" autocomplete="organization">
+      </div>
+
+      <div class="field" id="address-field" autocomplete="off">
+        <label for="address" data-i18n="address"></label>
+        <span class="status-icon" id="address-status-icon">
+          <svg data-icon="valid" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <svg data-icon="invalid" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <svg data-icon="loading" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="42" stroke-dashoffset="14"></circle></svg>
+        </span>
+        <input type="text" id="address" name="address" required
+               placeholder="" data-i18n-placeholder="address_placeholder" autocomplete="off">
+        <div class="suggestions" id="suggestions" role="listbox"></div>
+        <p class="field-hint" data-i18n="address_hint"></p>
+        <p class="status-message" id="address-status-message"></p>
+
+        <input type="hidden" id="hidden-street" name="street">
+        <input type="hidden" id="hidden-house-number" name="house_number">
+        <input type="hidden" id="hidden-zip" name="zip">
+        <input type="hidden" id="hidden-city" name="city">
+        <input type="hidden" id="hidden-country" name="country" value="CH">
+        <input type="hidden" id="hidden-house-key" name="house_key">
+      </div>
+    </section>
+
+    <!-- Step 2: Pickup date & place -->
+    <section class="panel" data-panel="2">
+      <p class="field-hint" id="pickup-options-loading" data-i18n="loading_pickup_options"></p>
+      <p class="status-message invalid" id="pickup-options-error" style="display:none;" data-i18n="pickup_options_error"></p>
+
+      <div class="field">
+        <label for="pickup_date" data-i18n="pickup_date"></label>
+        <select id="pickup_date" name="pickup_date" required>
+          <option value="" data-i18n="choose_date"></option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="pickup_place" data-i18n="pickup_place"></label>
+        <select id="pickup_place" name="pickup_place" required>
+          <option value="" data-i18n="choose_place"></option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Step 3: Contact -->
+    <section class="panel" data-panel="3">
+      <div class="field">
+        <label for="email" data-i18n="email"></label>
+        <input type="email" id="email" name="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="phone" data-i18n="phone"></label>
+        <input type="tel" id="phone" name="phone" required autocomplete="tel">
+      </div>
+    </section>
+
+    <div class="hp" aria-hidden="true">
+      <label>Leave this field empty <input type="text" id="contact_hp" name="contact_hp" tabindex="-1" autocomplete="off"></label>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="prev" id="prev-btn" data-i18n="previous"></button>
+      <button type="button" class="next" id="next-btn" data-i18n="next"></button>
+      <button type="submit" class="submit" id="submit-btn" style="display:none;" data-i18n="submit"></button>
+      <span class="form-error" id="form-error"></span>
+    </div>
+  </form>
+
+  <div class="result" id="result" style="display:none;"></div>
+</div>
+
+<script src="assets/config.js"></script>
+<script src="assets/i18n.js"></script>
+</body>
+</html>
