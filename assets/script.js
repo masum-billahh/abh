@@ -104,14 +104,47 @@
     validateAddress();
   }
 
-  async function fetchSuggestions(query) {
+    async function fetchSuggestions(query) {
     try {
-      const res = await fetch(
-        API + "/suggest?q=" + encodeURIComponent(query) + "&lang=" + LANG
-      );
+      const url =
+        "https://api.maptiler.com/geocoding/" + encodeURIComponent(query) + ".json?" +
+        new URLSearchParams({
+          key: window.MAPTILER_KEY || "",
+          country: "ch",
+          language: LANG,
+          limit: "6",
+          autocomplete: "true",
+          types: "address",
+        });
+
+      const res = await fetch(url);
       if (!res.ok) throw new Error("bad_response");
       const data = await res.json();
-      renderSuggestions(data.suggestions || []);
+
+      const suggestions = (data.features || []).map((f) => {
+        const props = f.properties || {};
+        const street = props.street || f.text || "";
+        const houseNumber = props.housenumber || f.address || "";
+        let zip = "";
+        let city = "";
+
+        (f.context || []).forEach((c) => {
+          const id = String(c.id || "");
+          if (id.startsWith("postal_code")) zip = c.text || zip;
+          if (id.startsWith("place") || id.startsWith("municipality")) city = c.text || city;
+        });
+
+        return {
+          label: f.place_name || (street + " " + houseNumber + ", " + zip + " " + city).trim(),
+          street,
+          house_number: String(houseNumber),
+          zip,
+          city,
+          country: "CH",
+        };
+      });
+
+      renderSuggestions(suggestions);
     } catch (err) {
       clearSuggestions();
     }
