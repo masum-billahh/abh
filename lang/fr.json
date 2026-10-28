@@ -23,7 +23,7 @@
   "choose_place": "Choisir un lieu",
   "loading_pickup_options": "Chargement des dates et lieux disponibles …",
   "pickup_options_error": "Impossible de charger les options d'enlèvement pour cette adresse.",
-  "weight_warning": "Poids maximum 30 kg par colis (carton compris, env. 5 kg).",
+  "weight_warning": "Poids maximum 30 kg par colis (boîte compris, env. 5 kg).",
   "email": "E-mail",
   "phone": "Téléphone",
   "previous": "Retour",
