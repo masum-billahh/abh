@@ -26,6 +26,8 @@
   const statusIcon     = document.getElementById("address-status-icon");
   const statusMessage  = document.getElementById("address-status-message");
   const addressField   = document.getElementById("address-field");
+  const numberChoicesBox  = document.getElementById("number-choices");
+  const numberChoicesList = document.getElementById("number-choices-list");
 
   const hidden = {
     street: document.getElementById("hidden-street"),
@@ -40,6 +42,10 @@
   let activeIndex = -1;
   let currentSuggestions = [];
   let addressValidated = false;
+  // Bumped on every new input/selection so a slow, outdated response is ignored.
+  let validationSeq = 0;
+  // Suggestion waiting for the user to pick one of its house numbers.
+  let pendingAddress = null;
 
   function clearSuggestions() {
     suggestBox.innerHTML = "";
@@ -50,6 +56,12 @@
 
   function clearHiddenFields() {
     Object.values(hidden).forEach((el) => (el.value = ""));
+  }
+
+  function clearNumberChoices() {
+    pendingAddress = null;
+    numberChoicesList.innerHTML = "";
+    numberChoicesBox.hidden = true;
   }
 
   function setAddressStatus(state, message) {
@@ -68,6 +80,22 @@
     if (state === "valid" || state === "invalid") {
       statusMessage.classList.add(state);
     }
+  }
+
+  /** "Schwimmbadweg 1, 9104 Waldstatt" - one label format for the whole flow. */
+  function formatAddressLabel(a) {
+    const streetLine = [a.street, a.house_number].filter(Boolean).join(" ");
+    const cityLine = [a.zip, a.city].filter(Boolean).join(" ");
+    return [streetLine, cityLine].filter(Boolean).join(", ");
+  }
+
+  function setHidden(a) {
+    hidden.street.value = a.street || "";
+    hidden.house_number.value = a.house_number || "";
+    hidden.zip.value = a.zip || "";
+    hidden.city.value = a.city || "";
+    hidden.country.value = a.country || "CH";
+    hidden.house_key.value = "";
   }
 
   function renderSuggestions(list) {
@@ -92,19 +120,95 @@
     suggestBox.classList.add("show");
   }
 
-  function selectSuggestion(item) {
-    addressInput.value = item.label;
-    hidden.street.value = item.street || "";
-    hidden.house_number.value = item.house_number || "";
-    hidden.zip.value = item.zip || "";
-    hidden.city.value = item.city || "";
-    hidden.country.value = item.country || "CH";
-
-    clearSuggestions();
-    validateAddress();
+  /** "26 - 28" / "26-28" -> ["26","27","28"]; null when not a numeric range. */
+  function expandHouseNumberRange(value) {
+    const match = String(value).trim().match(/^(\d+)\s*[-\u2013]\s*(\d+)$/);
+    if (!match) return null;
+    const start = Number(match[1]);
+    const end = Number(match[2]);
+    if (end <= start) return null;
+    // Absurdly wide ranges are bad data; offer just the endpoints.
+    if (end - start > 12) return [String(start), String(end)];
+    const numbers = [];
+    for (let n = start; n <= end; n++) numbers.push(String(n));
+    return numbers;
   }
 
-    async function fetchSuggestions(query) {
+  async function selectSuggestion(item) {
+    const seq = ++validationSeq;
+    addressValidated = false;
+    clearNumberChoices();
+    clearSuggestions();
+    setHidden(item);
+    addressInput.value = item.label;
+
+    if (!String(item.house_number).trim()) {
+      setAddressStatus("invalid", STRINGS.house_number_missing || "House number is missing.");
+      return;
+    }
+
+    // OSM sometimes maps a whole building row as one range entry ("26 - 28");
+    // Swiss Post only knows the single numbers, so let the user pick theirs.
+    const range = expandHouseNumberRange(item.house_number);
+    if (!range) {
+      validateAddress(item);
+      return;
+    }
+
+    setAddressStatus("loading", STRINGS.validating || "");
+    let existing = range;
+    try {
+      const res = await fetch(
+        API + "/house-numbers?" + new URLSearchParams({
+          zip: item.zip,
+          street: item.street,
+          numbers: range.join(","),
+        })
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.numbers)) existing = data.numbers;
+      }
+    } catch (err) {
+      // Lookup failed: keep every candidate, validation is the final gate.
+    }
+    if (seq !== validationSeq) return;
+
+    const choices = existing.length ? existing : range;
+    if (choices.length === 1) {
+      validateAddress(withHouseNumber(item, choices[0]));
+      return;
+    }
+
+    setAddressStatus("none");
+    pendingAddress = item;
+    choices.forEach((number) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = number;
+      btn.addEventListener("click", () => chooseNumber(number));
+      numberChoicesList.appendChild(btn);
+    });
+    numberChoicesBox.hidden = false;
+  }
+
+  function withHouseNumber(item, houseNumber) {
+    const next = Object.assign({}, item, { house_number: houseNumber });
+    next.label = formatAddressLabel(next);
+    return next;
+  }
+
+  function chooseNumber(houseNumber) {
+    if (!pendingAddress) return;
+    const address = withHouseNumber(pendingAddress, houseNumber);
+    clearNumberChoices();
+    ++validationSeq;
+    setHidden(address);
+    addressInput.value = address.label;
+    validateAddress(address);
+  }
+
+  async function fetchSuggestions(query) {
     try {
       const url =
         "https://api.maptiler.com/geocoding/" + encodeURIComponent(query) + ".json?" +
@@ -121,28 +225,36 @@
       if (!res.ok) throw new Error("bad_response");
       const data = await res.json();
 
-      const suggestions = (data.features || []).map((f) => {
-        const props = f.properties || {};
-        const street = props.street || f.text || "";
-        const houseNumber = props.housenumber || f.address || "";
-        let zip = "";
-        let city = "";
+      // MapTiler's `municipality.*` is the commune; `place.*` is only a
+      // neighbourhood/hamlet, so it is the last resort.
+      const CITY_PREFIXES = ["municipality", "locality", "place"];
+      const contextText = (context, prefix) => {
+        const hit = context.find((c) => typeof c.id === "string" && c.id.indexOf(prefix + ".") === 0);
+        return hit && hit.text ? String(hit.text).trim() : "";
+      };
 
-        (f.context || []).forEach((c) => {
-          const id = String(c.id || "");
-          if (id.startsWith("postal_code")) zip = c.text || zip;
-          if (id.startsWith("place") || id.startsWith("municipality")) city = c.text || city;
-        });
+      const suggestions = (data.features || [])
+        .map((f) => {
+          // Second line of defence next to `country=ch`: Swiss street addresses only.
+          if (!f.properties || f.properties.country_code !== "ch") return null;
+          if (!Array.isArray(f.place_type) || f.place_type.indexOf("address") === -1) return null;
 
-        return {
-          label: f.place_name || (street + " " + houseNumber + ", " + zip + " " + city).trim(),
-          street,
-          house_number: String(houseNumber),
-          zip,
-          city,
-          country: "CH",
-        };
-      });
+          const context = Array.isArray(f.context) ? f.context : [];
+          const street = String(f.text || "").trim();
+          const houseNumber = typeof f.address === "string" ? f.address.trim() : "";
+          const zip = contextText(context, "postal_code");
+          let city = "";
+          for (const prefix of CITY_PREFIXES) {
+            city = contextText(context, prefix);
+            if (city) break;
+          }
+          if (!street || !city) return null;
+
+          const item = { street, house_number: houseNumber, zip, city, country: "CH" };
+          item.label = formatAddressLabel(item);
+          return item;
+        })
+        .filter(Boolean);
 
       renderSuggestions(suggestions);
     } catch (err) {
@@ -150,70 +262,79 @@
     }
   }
 
-  async function validateAddress() {
-  addressValidated = false;
-  hidden.house_key.value = "";
+  async function validateAddress(address) {
+    const seq = ++validationSeq;
+    addressValidated = false;
+    hidden.house_key.value = "";
 
-  // Check house number first
-  if (!hidden.house_number.value.trim()) {
-    setAddressStatus(
-      "invalid",
-      STRINGS.house_number_missing || "House number is missing."
-    );
-    return;
-  }
-
-  setAddressStatus("loading", STRINGS.validating || "");
-
-  try {
-    const res = await fetch(API + "/validate-address", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        first_name: document.getElementById("first_name").value,
-        last_name: document.getElementById("last_name").value,
-        street: hidden.street.value,
-        house_number: hidden.house_number.value,
-        zip: hidden.zip.value,
-        city: hidden.city.value,
-        country: hidden.country.value,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (data.valid) {
-      addressValidated = true;
-      hidden.house_key.value = data.houseKey || "";
-      setAddressStatus("valid", STRINGS.address_valid || "");
-    } else {
-      setAddressStatus(
-        "invalid",
-        STRINGS.address_invalid || ""
-      );
+    if (!String(address.house_number).trim()) {
+      setAddressStatus("invalid", STRINGS.house_number_missing || "House number is missing.");
+      return;
     }
-  } catch (err) {
-    setAddressStatus(
-      "invalid",
-      STRINGS.address_invalid || ""
-    );
+
+    setAddressStatus("loading", STRINGS.validating || "");
+
+    try {
+      const res = await fetch(API + "/validate-address", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: document.getElementById("first_name").value,
+          last_name: document.getElementById("last_name").value,
+          street: address.street,
+          house_number: address.house_number,
+          zip: address.zip,
+          city: address.city,
+          country: address.country,
+        }),
+      });
+
+      const data = await res.json();
+      if (seq !== validationSeq) return; // user typed or picked something else meanwhile
+
+      if (data.valid && data.houseKey) {
+        // The backend may have matched a postal locality that differs from
+        // MapTiler's commune (6067 Melchtal vs Kerns) - use the matched one.
+        const city = data.city || address.city;
+        hidden.city.value = city;
+        hidden.house_key.value = data.houseKey;
+        addressInput.value = formatAddressLabel(Object.assign({}, address, { city }));
+        addressValidated = true;
+        setAddressStatus("valid", STRINGS.address_valid || "");
+      } else if (data.valid) {
+        // Matched but without a building key: pickup dates can't be looked up.
+        setAddressStatus("invalid", STRINGS.address_invalid || "");
+      } else {
+        const technical = ["rate_limited", "auth_failed", "validation_unreachable"].indexOf(data.message) !== -1;
+        setAddressStatus(
+          "invalid",
+          technical
+            ? (STRINGS.address_invalid || "")
+            : (STRINGS.not_deliverable || STRINGS.address_invalid || "")
+        );
+      }
+    } catch (err) {
+      if (seq !== validationSeq) return;
+      setAddressStatus("invalid", STRINGS.address_invalid || "");
+    }
   }
-}
 
   addressInput.addEventListener("input", () => {
+    ++validationSeq;
     addressValidated = false;
     setAddressStatus("none");
     clearHiddenFields();
+    clearNumberChoices();
 
     const query = addressInput.value.trim();
     clearTimeout(debounceTimer);
 
-    if (query.length < 3) {
+    if (query.length < 2) {
       clearSuggestions();
       return;
     }
 
-    debounceTimer = setTimeout(() => fetchSuggestions(query), 300);
+    debounceTimer = setTimeout(() => fetchSuggestions(query), 250);
   });
 
   addressInput.addEventListener("keydown", (e) => {
