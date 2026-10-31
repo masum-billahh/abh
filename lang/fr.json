@@ -20,6 +20,8 @@
   "address_valid": "Adresse confirmée",
   "address_invalid": "L'adresse n'a pas pu être confirmée",
   "house_number_missing": "Le numéro de la maison est manquant.",
+  "not_deliverable": "Ce numéro n'est pas desservi dans l'annuaire postal. Veuillez vérifier le numéro.",
+  "number_choices": "Cette entrée couvre plusieurs numéros – choisissez le vôtre :",
   "pickup_date": "Date d'enlèvement",
   "pickup_place": "Lieu d'enlèvement",
   "choose_date": "Choisir une date",

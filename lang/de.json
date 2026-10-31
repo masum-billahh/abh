@@ -20,6 +20,8 @@
   "address_valid": "Adresse bestätigt",
   "address_invalid": "Adresse konnte nicht bestätigt werden",
   "house_number_missing": "Die Hausnummer fehlt.",
+  "not_deliverable": "Diese Hausnummer ist im Post-Adressverzeichnis nicht zustellbar. Bitte prüfen Sie die Hausnummer.",
+  "number_choices": "Dieser Eintrag umfasst mehrere Hausnummern – bitte wählen Sie Ihre:",
   "pickup_date": "Abholdatum",
   "pickup_place": "Abholort",
   "choose_date": "Datum wählen",

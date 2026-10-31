@@ -359,9 +359,14 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+<<<<<<< HEAD
           // Swiss Post requires the name keys, but company mode sends them empty.
           first_name: getCustomerType() === "company" ? "" : document.getElementById("first_name").value,
           last_name: getCustomerType() === "company" ? "" : document.getElementById("last_name").value,
+=======
+          first_name: document.getElementById("first_name").value,
+          last_name: document.getElementById("last_name").value,
+>>>>>>> cb2bcd3 (added from pc)
           street: address.street,
           house_number: address.house_number,
           zip: address.zip,
