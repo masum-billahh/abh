@@ -1,5 +1,6 @@
 {
   "lang_name": "Deutsch",
+  "name_limit": "Vor- und Nachname zusammen dürfen höchstens {max} Zeichen lang sein.",
   "page_title": "Abholauftrag",
   "heading": "Abholung anfordern",
   "subheading": "Bitte füllen Sie das Formular aus.",
