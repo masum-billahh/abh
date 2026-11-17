@@ -19,6 +19,57 @@
   const TOTAL_STEPS = panels.length;
   let currentStep = 1;
 
+    // ---------- Name length limit (first + last name combined) ----------
+
+  // Combined limit, counted as "first last" (the two names plus the space between).
+  const MAX_NAME_LENGTH = 48;
+  const firstNameInput = document.getElementById("first_name");
+  const lastNameInput  = document.getElementById("last_name");
+  const nameLimitMsg   = document.getElementById("name-limit-message");
+
+  function combinedNameLength(first, last) {
+    return first.length + last.length + (first && last ? 1 : 0);
+  }
+
+  function showNameLimit(show) {
+    nameLimitMsg.hidden = !show;
+    nameLimitMsg.textContent = show
+      ? (STRINGS.name_limit || "First and last name combined can be at most {max} characters.")
+          .replace("{max}", String(MAX_NAME_LENGTH))
+      : "";
+  }
+
+  /** Cuts the edited field so first + last never exceed the limit. */
+  function enforceNameLimit(input, other) {
+    const otherLen = other.value.length;
+    const room = Math.max(0, MAX_NAME_LENGTH - otherLen - (otherLen ? 1 : 0));
+    let exceeded = false;
+
+    if (input.value.length > room) {
+      const caret = input.selectionStart;
+      input.value = input.value.slice(0, room);
+      if (caret !== null) input.setSelectionRange(Math.min(caret, room), Math.min(caret, room));
+      exceeded = true;
+    }
+    showNameLimit(exceeded);
+  }
+
+  firstNameInput.addEventListener("input", () => enforceNameLimit(firstNameInput, lastNameInput));
+  lastNameInput.addEventListener("input", () => enforceNameLimit(lastNameInput, firstNameInput));
+
+  // Typing into a field that is already at the limit changes nothing, so no
+  // "input" event fires: catch that attempt here and show the message.
+  [[firstNameInput, lastNameInput], [lastNameInput, firstNameInput]].forEach(([input, other]) => {
+    input.addEventListener("beforeinput", (e) => {
+      if (!e.data && e.inputType !== "insertFromPaste") return;
+      const selected = input.selectionEnd - input.selectionStart;
+      const room = MAX_NAME_LENGTH - other.value.length - (other.value ? 1 : 0);
+      if (input.value.length - selected >= room) {
+        showNameLimit(true);
+      }
+    });
+  });
+
   // ---------- Step 1: address autocomplete + validation ----------
 
   const addressInput = document.getElementById("address");
@@ -436,6 +487,12 @@
       formError.textContent = STRINGS.required_field || "";
       return false;
     }
+    if (combinedNameLength(firstName, lastName) > MAX_NAME_LENGTH) {
+      showNameLimit(true);
+      firstNameInput.focus();
+      return false;
+    }
+    
     if (!addressValidated || !hidden.house_key.value) {
       formError.textContent = STRINGS.select_suggestion || "";
       addressInput.focus();
