@@ -1,5 +1,6 @@
 {
   "lang_name": "English",
+  "name_limit": "First and last name combined can be at most {max} characters.",
   "page_title": "Pickup Request",
   "heading": "Request a pickup",
   "subheading": "Please fill in the form below.",
