@@ -1,5 +1,6 @@
 {
   "lang_name": "Français",
+  "name_limit": "Le prénom et le nom ensemble ne peuvent pas dépasser {max} caractères.",
   "page_title": "Demande d'enlèvement",
   "heading": "Demander un enlèvement",
   "subheading": "Merci de remplir le formulaire ci-dessous.",
