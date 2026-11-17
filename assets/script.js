@@ -22,7 +22,7 @@
     // ---------- Name length limit (first + last name combined) ----------
 
   // Combined limit, counted as "first last" (the two names plus the space between).
-  const MAX_NAME_LENGTH = 48;
+  const MAX_NAME_LENGTH = 49;
   const firstNameInput = document.getElementById("first_name");
   const lastNameInput  = document.getElementById("last_name");
   const nameLimitMsg   = document.getElementById("name-limit-message");
