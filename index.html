@@ -31,23 +31,37 @@
 
     <!-- Step 1: Address -->
     <section class="panel active" data-panel="1">
-      <div class="row">
-        <div class="field">
-          <label for="first_name" data-i18n="first_name"></label>
-          <input type="text" id="first_name" name="first_name" required autocomplete="given-name">
-        </div>
-        <div class="field">
-          <label for="last_name" data-i18n="last_name"></label>
-          <input type="text" id="last_name" name="last_name" required autocomplete="family-name">
-        </div>
-      </div>
-      <p class="status-message invalid" id="name-limit-message" role="alert" aria-live="polite" hidden></p>
-
-      <div class="field">
-        <label for="company">
-          <span data-i18n="company"></span> <span class="tag">(<span data-i18n="optional"></span>)</span>
+      <!-- Customer type switch: individual (default) / company -->
+      <div class="type-switch" role="radiogroup" id="customer-type-switch">
+        <label class="type-option">
+          <input type="radio" name="customer_type" value="individual" checked>
+          <span data-i18n="type_individual"></span>
         </label>
-        <input type="text" id="company" name="company" autocomplete="organization">
+        <label class="type-option">
+          <input type="radio" name="customer_type" value="company">
+          <span data-i18n="type_company"></span>
+        </label>
+      </div>
+
+      <div id="individual-fields">
+        <div class="row">
+          <div class="field">
+            <label for="first_name" data-i18n="first_name"></label>
+            <input type="text" id="first_name" name="first_name" autocomplete="given-name">
+          </div>
+          <div class="field">
+            <label for="last_name" data-i18n="last_name"></label>
+            <input type="text" id="last_name" name="last_name" autocomplete="family-name">
+          </div>
+        </div>
+        <p class="status-message invalid" id="name-limit-message" role="alert" aria-live="polite" hidden></p>
+      </div>
+
+      <div id="company-fields" hidden>
+        <div class="field">
+          <label for="company" data-i18n="company"></label>
+          <input type="text" id="company" name="company" autocomplete="organization">
+        </div>
       </div>
 
       <div class="field" id="address-field" autocomplete="off">
