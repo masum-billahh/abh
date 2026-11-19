@@ -70,6 +70,35 @@
     });
   });
 
+    // ---------- Customer type switch (individual / company) ----------
+
+  const typeRadios       = Array.from(document.querySelectorAll('input[name="customer_type"]'));
+  const individualFields = document.getElementById("individual-fields");
+  const companyFields    = document.getElementById("company-fields");
+  const companyInput     = document.getElementById("company");
+
+  function getCustomerType() {
+    const checked = typeRadios.find((r) => r.checked);
+    return checked ? checked.value : "individual";
+  }
+
+  function applyCustomerType() {
+    const isCompany = getCustomerType() === "company";
+    individualFields.hidden = isCompany;
+    companyFields.hidden = !isCompany;
+
+    // Never keep data from the hidden mode.
+    if (isCompany) {
+      firstNameInput.value = "";
+      lastNameInput.value = "";
+      showNameLimit(false);
+    } else {
+      companyInput.value = "";
+    }
+  }
+
+  typeRadios.forEach((r) => r.addEventListener("change", applyCustomerType));
+
   // ---------- Step 1: address autocomplete + validation ----------
 
   const addressInput = document.getElementById("address");
@@ -330,8 +359,9 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          first_name: document.getElementById("first_name").value,
-          last_name: document.getElementById("last_name").value,
+          // Swiss Post requires the name keys, but company mode sends them empty.
+          first_name: getCustomerType() === "company" ? "" : document.getElementById("first_name").value,
+          last_name: getCustomerType() === "company" ? "" : document.getElementById("last_name").value,
           street: address.street,
           house_number: address.house_number,
           zip: address.zip,
@@ -479,20 +509,23 @@
     submitBtn.style.display = currentStep === TOTAL_STEPS ? "inline-block" : "none";
   }
 
-  function validateStep1() {
-    const firstName = document.getElementById("first_name").value.trim();
-    const lastName = document.getElementById("last_name").value.trim();
+    function validateStep1() {
+    const isCompany = getCustomerType() === "company";
+    const firstName = firstNameInput.value.trim();
+    const lastName = lastNameInput.value.trim();
+    const company = companyInput.value.trim();
 
-    if (!firstName || !lastName || !addressInput.value.trim()) {
+    const identityMissing = isCompany ? !company : (!firstName || !lastName);
+    if (identityMissing || !addressInput.value.trim()) {
       formError.textContent = STRINGS.required_field || "";
       return false;
     }
-    if (combinedNameLength(firstName, lastName) > MAX_NAME_LENGTH) {
+    if (!isCompany && combinedNameLength(firstName, lastName) > MAX_NAME_LENGTH) {
       showNameLimit(true);
       firstNameInput.focus();
       return false;
     }
-    
+
     if (!addressValidated || !hidden.house_key.value) {
       formError.textContent = STRINGS.select_suggestion || "";
       addressInput.focus();
@@ -564,9 +597,10 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          first_name: document.getElementById("first_name").value,
-          last_name: document.getElementById("last_name").value,
-          company: document.getElementById("company").value,
+          customer_type: getCustomerType(),
+          first_name: getCustomerType() === "company" ? "" : firstNameInput.value,
+          last_name: getCustomerType() === "company" ? "" : lastNameInput.value,
+          company: getCustomerType() === "company" ? companyInput.value : "",
           street: hidden.street.value,
           house_number: hidden.house_number.value,
           zip: hidden.zip.value,
