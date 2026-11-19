@@ -1,5 +1,7 @@
 {
   "lang_name": "Deutsch",
+  "type_individual": "Privatperson",
+  "type_company": "Firma",
   "name_limit": "Vor- und Nachname zusammen dürfen höchstens {max} Zeichen lang sein.",
   "page_title": "Abholauftrag",
   "heading": "Abholung anfordern",
