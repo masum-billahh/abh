@@ -1,6 +1,6 @@
 {
   "lang_name": "English",
-  "type_individual": "Individual",
+  "type_individual": "Private",
   "type_company": "Company",
   "name_limit": "First and last name combined can be at most {max} characters.",
   "page_title": "Pickup Request",
