@@ -53,7 +53,7 @@
     document.querySelectorAll(".field.has-error").forEach((f) => f.classList.remove("has-error"));
     document.querySelectorAll(".field-error").forEach((p) => p.remove());
     document.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
-    clearFieldErrors();
+    formError.textContent = "";
   }
 
   function setFieldError(input, message) {
