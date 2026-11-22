@@ -337,7 +337,6 @@
       );
       if (res.ok) {
         const data = await res.json();
-		if (query !== addressInput.value.trim()) return; // outdated response
         if (Array.isArray(data.numbers)) existing = data.numbers;
       }
     } catch (err) {
@@ -395,6 +394,7 @@
       const res = await fetch(url);
       if (!res.ok) throw new Error("bad_response");
       const data = await res.json();
+	  if (query !== addressInput.value.trim()) return; // outdated response
 
       // MapTiler's `municipality.*` is the commune; `place.*` is only a
       // neighbourhood/hamlet, so it is the last resort.
