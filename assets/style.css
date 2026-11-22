@@ -663,3 +663,55 @@ button.submit:disabled {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* --------------------------------------------------
+   FIELD ERRORS / ADDRESS HELP
+-------------------------------------------------- */
+
+.field.has-error input[type="text"],
+.field.has-error input[type="tel"],
+.field.has-error input[type="email"],
+.field.has-error select {
+  border-color: var(--accent);
+  background: #fdf8f4;
+}
+
+.field-error {
+  font-size: 12px;
+  margin: 6px 0 0;
+  padding-left: 2px;
+  color: var(--accent);
+}
+
+.form-error:empty {
+  display: none;
+}
+
+.form-error a,
+.field-error a,
+.status-message a,
+.address-help a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.address-help {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid #ecd9c6;
+  border-radius: 8px;
+  background: #faf3ee;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.address-help-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.address-help-text {
+  margin: 0;
+}

@@ -18,6 +18,83 @@
 
   const TOTAL_STEPS = panels.length;
   let currentStep = 1;
+  
+  
+  // ---------- Error helpers (field highlighting + messages with phone link) ----------
+
+  const SUPPORT_PHONE = window.SUPPORT_PHONE || "+41782570450";
+  const SUPPORT_PHONE_DISPLAY = window.SUPPORT_PHONE_DISPLAY || "+41 78 257 04 50";
+
+  /** Writes a message into `el`; the {phone} placeholder becomes a tel: link. */
+  function setMessage(el, template) {
+    el.textContent = "";
+    const parts = String(template || "").split("{phone}");
+    parts.forEach((part, i) => {
+      if (part) el.appendChild(document.createTextNode(part));
+      if (i < parts.length - 1) {
+        const a = document.createElement("a");
+        a.href = "tel:" + SUPPORT_PHONE;
+        a.textContent = SUPPORT_PHONE_DISPLAY;
+        el.appendChild(a);
+      }
+    });
+  }
+
+  function clearFieldError(input) {
+    const field = input && input.closest ? input.closest(".field") : null;
+    if (!field) return;
+    field.classList.remove("has-error");
+    const p = field.querySelector(".field-error");
+    if (p) p.remove();
+    input.removeAttribute("aria-invalid");
+  }
+
+  function clearFieldErrors() {
+    document.querySelectorAll(".field.has-error").forEach((f) => f.classList.remove("has-error"));
+    document.querySelectorAll(".field-error").forEach((p) => p.remove());
+    document.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+    clearFieldErrors();
+  }
+
+  function setFieldError(input, message) {
+    const field = input.closest(".field");
+    if (!field) return;
+    field.classList.add("has-error");
+    input.setAttribute("aria-invalid", "true");
+    const p = document.createElement("p");
+    p.className = "field-error";
+    setMessage(p, message);
+    field.appendChild(p);
+  }
+
+  /**
+   * errors: [{ input, message, kind: "missing" | "invalid" }]
+   * Highlights every failing field and shows one summary. The phone link is
+   * only added when something other than "field missing" is wrong.
+   */
+  function reportErrors(errors) {
+    clearFieldErrors();
+    if (!errors.length) return true;
+    errors.forEach((e) => setFieldError(e.input, e.message));
+    const onlyMissing = errors.every((e) => e.kind === "missing");
+    setMessage(formError, onlyMissing ? STRINGS.err_summary_missing : STRINGS.err_summary_with_phone);
+    errors[0].input.focus();
+    return false;
+  }
+
+  // Typing or changing a field removes its own error.
+  form.addEventListener("input", (e) => clearFieldError(e.target));
+  form.addEventListener("change", (e) => clearFieldError(e.target));
+
+  // Swiss mobile numbers (075-079). Accepts 079 123 45 67, +41 79 ..., 0041 79 ...
+  // Returns "+41791234567" or null if it is not a Swiss mobile number.
+  function normalizeSwissMobile(raw) {
+    let d = String(raw).replace(/[\s().\-\/]/g, "");
+    if (d.startsWith("+")) d = d.slice(1);
+    else if (d.startsWith("00")) d = d.slice(2);
+    if (d.startsWith("41")) d = "0" + d.slice(2).replace(/^0/, "");
+    return /^07[5-9]\d{7}$/.test(d) ? "+41" + d.slice(1) : null;
+  }
 
     // ---------- Name length limit (first + last name combined) ----------
 
@@ -86,6 +163,8 @@
     const isCompany = getCustomerType() === "company";
     individualFields.hidden = isCompany;
     companyFields.hidden = !isCompany;
+	
+	clearFieldErrors();
 
     // Never keep data from the hidden mode.
     if (isCompany) {
@@ -108,6 +187,15 @@
   const addressField   = document.getElementById("address-field");
   const numberChoicesBox  = document.getElementById("number-choices");
   const numberChoicesList = document.getElementById("number-choices-list");
+  
+    const addressHelp     = document.getElementById("address-help");
+  const addressHelpText = document.getElementById("address-help-text");
+
+  function showAddressHelp(show) {
+    addressHelp.hidden = !show;
+    if (show) setMessage(addressHelpText, STRINGS.address_not_found_text);
+    else addressHelpText.textContent = "";
+  }
 
   const hidden = {
     street: document.getElementById("hidden-street"),
@@ -145,6 +233,7 @@
   }
 
   function setAddressStatus(state, message) {
+    showAddressHelp(false);	
     statusIcon.classList.remove("valid", "invalid", "loading", "show");
     statusMessage.classList.remove("valid", "invalid");
     addressField.classList.remove("has-status");
@@ -156,7 +245,7 @@
 
     addressField.classList.add("has-status");
     statusIcon.classList.add("show", state);
-    statusMessage.textContent = message || "";
+    setMessage(statusMessage, message || "");
     if (state === "valid" || state === "invalid") {
       statusMessage.classList.add(state);
     }
@@ -176,6 +265,7 @@
     hidden.city.value = a.city || "";
     hidden.country.value = a.country || "CH";
     hidden.house_key.value = "";
+    clearFieldError(addressInput);	
   }
 
   function renderSuggestions(list) {
@@ -247,6 +337,7 @@
       );
       if (res.ok) {
         const data = await res.json();
+		if (query !== addressInput.value.trim()) return; // outdated response
         if (Array.isArray(data.numbers)) existing = data.numbers;
       }
     } catch (err) {
@@ -337,6 +428,12 @@
         .filter(Boolean);
 
       renderSuggestions(suggestions);
+	  // Nothing found for a reasonably complete query: explain + offer the way out.
+      // 8 = minimum characters before we conclude "not found"; tune as needed.
+      if (!suggestions.length && query.length >= 8) {
+        setAddressStatus("none");
+        showAddressHelp(true);
+      }
     } catch (err) {
       clearSuggestions();
     }
@@ -384,19 +481,22 @@
         setAddressStatus("valid", STRINGS.address_valid || "");
       } else if (data.valid) {
         // Matched but without a building key: pickup dates can't be looked up.
-        setAddressStatus("invalid", STRINGS.address_invalid || "");
+        setAddressStatus("invalid", STRINGS.not_deliverable || STRINGS.address_invalid || "");
+        showAddressHelp(true);
       } else {
         const technical = ["rate_limited", "auth_failed", "validation_unreachable"].indexOf(data.message) !== -1;
-        setAddressStatus(
-          "invalid",
-          technical
-            ? (STRINGS.address_invalid || "")
-            : (STRINGS.not_deliverable || STRINGS.address_invalid || "")
-        );
+        if (technical) {
+          // Not the customer's fault: apologise + phone number.
+          setAddressStatus("invalid", STRINGS.address_check_failed || STRINGS.address_invalid || "");
+        } else {
+          // Address not supported by Swiss Post: explanation + solution (3ai).
+          setAddressStatus("invalid", STRINGS.not_deliverable || STRINGS.address_invalid || "");
+          showAddressHelp(true);
+        }
       }
     } catch (err) {
       if (seq !== validationSeq) return;
-      setAddressStatus("invalid", STRINGS.address_invalid || "");
+      setAddressStatus("invalid", STRINGS.address_check_failed || STRINGS.address_invalid || "");
     }
   }
 
@@ -452,6 +552,7 @@
   const pickupPlaceSelect = document.getElementById("pickup_place");
   const pickupLoading      = document.getElementById("pickup-options-loading");
   const pickupError        = document.getElementById("pickup-options-error");
+   setMessage(pickupError, STRINGS.pickup_options_error);
   let pickupOptionsLoaded = false;
 
   async function loadPickupOptions() {
@@ -509,51 +610,85 @@
     submitBtn.style.display = currentStep === TOTAL_STEPS ? "inline-block" : "none";
   }
 
-    function validateStep1() {
+      function validateStep1() {
     const isCompany = getCustomerType() === "company";
     const firstName = firstNameInput.value.trim();
     const lastName = lastNameInput.value.trim();
-    const company = companyInput.value.trim();
+    const errors = [];
 
-    const identityMissing = isCompany ? !company : (!firstName || !lastName);
-    if (identityMissing || !addressInput.value.trim()) {
-      formError.textContent = STRINGS.required_field || "";
-      return false;
-    }
-    if (!isCompany && combinedNameLength(firstName, lastName) > MAX_NAME_LENGTH) {
-      showNameLimit(true);
-      firstNameInput.focus();
-      return false;
+    if (isCompany) {
+      if (!companyInput.value.trim()) {
+        errors.push({ input: companyInput, kind: "missing", message: STRINGS.err_company_missing });
+      }
+    } else {
+      if (!firstName) errors.push({ input: firstNameInput, kind: "missing", message: STRINGS.err_first_name_missing });
+      if (!lastName) errors.push({ input: lastNameInput, kind: "missing", message: STRINGS.err_last_name_missing });
+      if (firstName && lastName && combinedNameLength(firstName, lastName) > MAX_NAME_LENGTH) {
+        showNameLimit(true);
+        errors.push({
+          input: firstNameInput,
+          kind: "invalid",
+          message: (STRINGS.name_limit || "").replace("{max}", String(MAX_NAME_LENGTH)),
+        });
+      }
     }
 
-    if (!addressValidated || !hidden.house_key.value) {
-      formError.textContent = STRINGS.select_suggestion || "";
-      addressInput.focus();
-      return false;
+    if (!addressInput.value.trim()) {
+      errors.push({ input: addressInput, kind: "missing", message: STRINGS.err_address_missing });
+    } else if (!addressValidated || !hidden.house_key.value) {
+      if (pendingAddress) {
+        errors.push({ input: addressInput, kind: "missing", message: STRINGS.err_pick_number });
+      } else if (statusIcon.classList.contains("loading")) {
+        errors.push({ input: addressInput, kind: "missing", message: STRINGS.address_checking });
+      } else if (hidden.street.value && !hidden.house_number.value.trim()) {
+        errors.push({ input: addressInput, kind: "missing", message: STRINGS.house_number_missing });
+      } else if (!addressHelp.hidden || statusMessage.classList.contains("invalid")) {
+        errors.push({ input: addressInput, kind: "invalid", message: STRINGS.err_address_failed });
+      } else {
+        errors.push({ input: addressInput, kind: "missing", message: STRINGS.select_suggestion });
+      }
     }
-    return true;
+
+    return reportErrors(errors);
   }
 
   function validateStep2() {
-    if (!pickupDateSelect.value || !pickupPlaceSelect.value) {
-      formError.textContent = STRINGS.required_field || "";
-      return false;
+    if (!pickupOptionsLoaded) {
+      return reportErrors([{ input: pickupDateSelect, kind: "invalid", message: STRINGS.pickup_options_error }]);
     }
-    return true;
+    const errors = [];
+    if (!pickupDateSelect.value) {
+      errors.push({ input: pickupDateSelect, kind: "missing", message: STRINGS.err_pickup_date_missing });
+    }
+    if (!pickupPlaceSelect.value) {
+      errors.push({ input: pickupPlaceSelect, kind: "missing", message: STRINGS.err_pickup_place_missing });
+    }
+    return reportErrors(errors);
   }
 
   function validateStep4() {
-    const email = document.getElementById("email").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    if (!email || !phone) {
-      formError.textContent = STRINGS.required_field || "";
-      return false;
+    const emailInput = document.getElementById("email");
+    const phoneInput = document.getElementById("phone");
+    const email = emailInput.value.trim();
+    const phone = phoneInput.value.trim();
+    const errors = [];
+
+    if (!email) {
+      errors.push({ input: emailInput, kind: "missing", message: STRINGS.err_email_missing });
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      errors.push({ input: emailInput, kind: "invalid", message: STRINGS.err_email_invalid });
     }
-    return true;
+
+    // Phone is optional, but if filled it must be a Swiss mobile number.
+    if (phone && !normalizeSwissMobile(phone)) {
+      errors.push({ input: phoneInput, kind: "invalid", message: STRINGS.err_phone_invalid });
+    }
+
+    return reportErrors(errors);
   }
 
   nextBtn.addEventListener("click", async () => {
-    formError.textContent = "";
+    clearFieldErrors();
 
     if (currentStep === 1) {
       if (!validateStep1()) return;
@@ -574,7 +709,7 @@
   });
 
   prevBtn.addEventListener("click", () => {
-    formError.textContent = "";
+    clearFieldErrors();
     if (currentStep > 1) {
       currentStep -= 1;
       updateStepUI();
@@ -585,7 +720,7 @@
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    formError.textContent = "";
+    clearFieldErrors();
 
     if (!validateStep4()) return;
 
@@ -610,7 +745,7 @@
           pickup_place: pickupPlaceSelect.value,
           parcel_size: "LARGE",
           email: document.getElementById("email").value,
-          phone: document.getElementById("phone").value,
+          phone: normalizeSwissMobile(document.getElementById("phone").value) || "",
           lang: LANG,
           contact_hp: document.getElementById("contact_hp").value, // honeypot, must stay empty
         }),
@@ -642,12 +777,12 @@
           resultEl.appendChild(p);
         }
       } else {
-        formError.textContent = STRINGS.order_failed || "";
+        setMessage(formError, STRINGS.order_failed);
         submitBtn.disabled = false;
         submitBtn.textContent = STRINGS.submit || "";
       }
     } catch (err) {
-      formError.textContent = STRINGS.order_failed || "";
+      setMessage(formError, STRINGS.order_failed);
       submitBtn.disabled = false;
       submitBtn.textContent = STRINGS.submit || "";
     }

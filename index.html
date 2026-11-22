@@ -76,6 +76,11 @@
         <div class="suggestions" id="suggestions" role="listbox"></div>
         <p class="field-hint" data-i18n="address_hint"></p>
         <p class="status-message" id="address-status-message"></p>
+		
+		<div class="address-help" id="address-help" role="alert" hidden>
+          <p class="address-help-title" data-i18n="address_not_found_title"></p>
+          <p class="address-help-text" id="address-help-text"></p>
+        </div>
 
         <div class="number-choices" id="number-choices" hidden>
           <p class="field-hint" data-i18n="number_choices"></p>
@@ -94,7 +99,7 @@
     <!-- Step 2: Pickup date & place -->
     <section class="panel" data-panel="2">
       <p class="field-hint" id="pickup-options-loading" data-i18n="loading_pickup_options"></p>
-      <p class="status-message invalid" id="pickup-options-error" style="display:none;" data-i18n="pickup_options_error"></p>
+      <p class="status-message invalid" id="pickup-options-error" style="display:none;" ></p>
 
       <div class="field">
         <label for="pickup_date" data-i18n="pickup_date"></label>
@@ -118,20 +123,23 @@
         <input type="email" id="email" name="email" required autocomplete="email">
       </div>
       <div class="field">
-        <label for="phone" data-i18n="phone"></label>
-        <input type="tel" id="phone" name="phone" required autocomplete="tel">
+        <label for="phone"><span data-i18n="phone"></span> <span class="tag" data-i18n="optional"></span></label>
+        <input type="tel" id="phone" name="phone" autocomplete="tel" inputmode="tel"
+               placeholder="" data-i18n-placeholder="phone_placeholder">
       </div>
     </section>
 
     <div class="hp" aria-hidden="true">
       <label>Leave this field empty <input type="text" id="contact_hp" name="contact_hp" tabindex="-1" autocomplete="off"></label>
     </div>
+	
+	<div class="form-error" id="form-error" role="alert" aria-live="polite"></div>
 
     <div class="actions">
       <button type="button" class="prev" id="prev-btn" data-i18n="previous"></button>
       <button type="button" class="next" id="next-btn" data-i18n="next"></button>
       <button type="submit" class="submit" id="submit-btn" style="display:none;" data-i18n="submit"></button>
-      <span class="form-error" id="form-error"></span>
+      
     </div>
   </form>
 
