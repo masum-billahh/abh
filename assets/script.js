@@ -86,14 +86,19 @@
   form.addEventListener("input", (e) => clearFieldError(e.target));
   form.addEventListener("change", (e) => clearFieldError(e.target));
 
-  // Swiss mobile numbers (075-079). Accepts 079 123 45 67, +41 79 ..., 0041 79 ...
-  // Returns "+41791234567" or null if it is not a Swiss mobile number.
-  function normalizeSwissMobile(raw) {
+    // Accepts Swiss landline or mobile numbers in national (0627970260) or
+  // international (+41786021989) form; spaces, dashes, slashes, brackets are
+  // ignored. Foreign +numbers are allowed too. Returns the cleaned number
+  // or null if it doesn't look like a phone number.
+  function normalizePhone(raw) {
     let d = String(raw).replace(/[\s().\-\/]/g, "");
-    if (d.startsWith("+")) d = d.slice(1);
-    else if (d.startsWith("00")) d = d.slice(2);
-    if (d.startsWith("41")) d = "0" + d.slice(2).replace(/^0/, "");
-    return /^07[5-9]\d{7}$/.test(d) ? "+41" + d.slice(1) : null;
+    if (d.startsWith("0041")) d = "+" + d.slice(2);
+    else if (/^41\d{9}$/.test(d)) d = "+" + d;
+    d = d.replace(/^\+410/, "+41");                 // +41 (0)78 ... -> +4178 ...
+    if (/^\+41\d{9}$/.test(d)) return d;            // +41786021989
+    if (/^0\d{9}$/.test(d)) return d;               // 0627970260
+    if (/^\+(?!41)[1-9]\d{7,14}$/.test(d)) return d; // other countries
+    return null;
   }
 
     // ---------- Name length limit (first + last name combined) ----------
@@ -679,8 +684,9 @@
       errors.push({ input: emailInput, kind: "invalid", message: STRINGS.err_email_invalid });
     }
 
-    // Phone is optional, but if filled it must be a Swiss mobile number.
-    if (phone && !normalizeSwissMobile(phone)) {
+    if (!phone) {
+      errors.push({ input: phoneInput, kind: "missing", message: STRINGS.err_phone_missing });
+    } else if (!normalizePhone(phone)) {
       errors.push({ input: phoneInput, kind: "invalid", message: STRINGS.err_phone_invalid });
     }
 
@@ -745,7 +751,7 @@
           pickup_place: pickupPlaceSelect.value,
           parcel_size: "LARGE",
           email: document.getElementById("email").value,
-          phone: normalizeSwissMobile(document.getElementById("phone").value) || "",
+          phone: normalizePhone(document.getElementById("phone").value) || "",
           lang: LANG,
           contact_hp: document.getElementById("contact_hp").value, // honeypot, must stay empty
         }),

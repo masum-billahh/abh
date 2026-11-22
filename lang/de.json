@@ -59,5 +59,6 @@
   "err_pickup_place_missing": "Bitte wählen Sie einen Abholort.",
   "err_email_missing": "Bitte geben Sie Ihre E-Mail-Adresse ein.",
   "err_email_invalid": "Diese E-Mail-Adresse scheint ungültig zu sein. Bitte prüfen Sie sie (z. B. name@beispiel.ch).",
-  "err_phone_invalid": "Bitte geben Sie eine Schweizer Mobilnummer ein (z. B. 079 123 45 67) oder lassen Sie das Feld leer."
+   "err_phone_missing": "Bitte geben Sie Ihre Telefonnummer ein.",
+  "err_phone_invalid": "Bitte geben Sie eine gültige Telefonnummer ein, z. B. 078 602 19 89 oder +41 78 602 19 89."
 }

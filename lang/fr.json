@@ -59,5 +59,6 @@
   "err_pickup_place_missing": "Veuillez choisir un lieu d'enlèvement.",
   "err_email_missing": "Veuillez saisir votre adresse e-mail.",
   "err_email_invalid": "Cette adresse e-mail semble invalide. Veuillez la vérifier (p. ex. nom@exemple.ch).",
-  "err_phone_invalid": "Veuillez saisir un numéro de mobile suisse (p. ex. 079 123 45 67) ou laisser le champ vide."
+  "err_phone_missing": "Veuillez saisir votre numéro de téléphone.",
+  "err_phone_invalid": "Veuillez saisir un numéro de téléphone valide, p. ex. 078 602 19 89 ou +41 78 602 19 89."
 }
