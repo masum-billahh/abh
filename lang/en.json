@@ -20,8 +20,6 @@
   "address_valid": "Address confirmed",
   "address_invalid": "Address could not be confirmed",
   "house_number_missing": "House number is missing.",
-  "not_deliverable": "This house number is not deliverable in the postal directory. Please check the house number.",
-  "number_choices": "This entry covers several house numbers – choose yours:",
   "pickup_date": "Pickup date",
   "pickup_place": "Pickup place",
   "choose_date": "Choose a date",

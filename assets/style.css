@@ -451,34 +451,6 @@ h1 {
   background: var(--soft);
 }
 
-/* House-number picker for range entries like "26 - 28" */
-.number-choices[hidden] {
-  display: none;
-}
-
-.number-choices-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.number-choices-list button {
-  padding: 9px 16px;
-  border: 1px solid var(--line-dark);
-  border-radius: 8px;
-  background: #fff;
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--ink);
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.number-choices-list button:hover {
-  background: var(--soft);
-}
-
 /* --------------------------------------------------
    ACTIONS
 -------------------------------------------------- */
