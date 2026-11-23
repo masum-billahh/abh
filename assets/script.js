@@ -40,6 +40,24 @@
     });
   }
 
+  // "validation" = the summary under the form belongs to highlighted fields,
+  // "order" = the order request itself failed. Either way it must not outlive
+  // the problem it describes.
+  let formErrorKind = "";
+
+  function clearFormError() {
+    formError.textContent = "";
+    formErrorKind = "";
+  }
+
+  /** Drops the summary once no field is highlighted any more (or the user edits after a failed order). */
+  function clearSummaryIfResolved() {
+    if (!formError.textContent) return;
+    if (formErrorKind === "order" || !document.querySelector(".field.has-error")) {
+      clearFormError();
+    }
+  }
+
   function clearFieldError(input) {
     const field = input && input.closest ? input.closest(".field") : null;
     if (!field) return;
@@ -47,13 +65,14 @@
     const p = field.querySelector(".field-error");
     if (p) p.remove();
     input.removeAttribute("aria-invalid");
+    clearSummaryIfResolved();
   }
 
   function clearFieldErrors() {
     document.querySelectorAll(".field.has-error").forEach((f) => f.classList.remove("has-error"));
     document.querySelectorAll(".field-error").forEach((p) => p.remove());
     document.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
-    formError.textContent = "";
+    clearFormError();
   }
 
   function setFieldError(input, message) {
@@ -78,6 +97,7 @@
     errors.forEach((e) => setFieldError(e.input, e.message));
     const onlyMissing = errors.every((e) => e.kind === "missing");
     setMessage(formError, onlyMissing ? STRINGS.err_summary_missing : STRINGS.err_summary_with_phone);
+    formErrorKind = "validation";
     errors[0].input.focus();
     return false;
   }
@@ -169,16 +189,12 @@
     individualFields.hidden = isCompany;
     companyFields.hidden = !isCompany;
 	
-	clearFieldErrors();
+    clearFieldErrors();
 
-    // Never keep data from the hidden mode.
-    if (isCompany) {
-      firstNameInput.value = "";
-      lastNameInput.value = "";
-      showNameLimit(false);
-    } else {
-      companyInput.value = "";
-    }
+    // Typed values stay in their (hidden) inputs so switching back loses
+    // nothing. Data of the inactive mode is never sent: validation and the
+    // order request both look at getCustomerType().
+    if (isCompany) showNameLimit(false);
   }
 
   typeRadios.forEach((r) => r.addEventListener("change", applyCustomerType));
@@ -559,17 +575,31 @@
   const pickupError        = document.getElementById("pickup-options-error");
    setMessage(pickupError, STRINGS.pickup_options_error);
   let pickupOptionsLoaded = false;
+  // The house_key the dates/places in the selects were loaded for. If the
+  // address (and so its house_key) changes, they are stale and get reloaded.
+  let pickupOptionsKey = "";
+  let pickupSeq = 0;
+
+  function resetPickupOptions() {
+    pickupOptionsLoaded = false;
+    pickupOptionsKey = "";
+    pickupDateSelect.innerHTML = '<option value="">' + (STRINGS.choose_date || "") + "</option>";
+    pickupPlaceSelect.innerHTML = '<option value="">' + (STRINGS.choose_place || "") + "</option>";
+  }
 
   async function loadPickupOptions() {
+    const key = hidden.house_key.value;
+    const seq = ++pickupSeq;
+    resetPickupOptions();
     pickupLoading.style.display = "block";
     pickupError.style.display = "none";
-    pickupOptionsLoaded = false;
 
     try {
       const res = await fetch(
-        API + "/collection-instructions?house_key=" + encodeURIComponent(hidden.house_key.value) + "&lang=" + LANG
+        API + "/collection-instructions?house_key=" + encodeURIComponent(key) + "&lang=" + LANG
       );
       const data = await res.json();
+      if (seq !== pickupSeq) return; // a newer load replaced this one
 
       pickupDateSelect.innerHTML = '<option value="">' + (STRINGS.choose_date || "") + "</option>";
       (data.dates || []).forEach((date) => {
@@ -593,8 +623,10 @@
         pickupError.style.display = "block";
       } else {
         pickupOptionsLoaded = true;
+        pickupOptionsKey = key;
       }
     } catch (err) {
+      if (seq !== pickupSeq) return;
       pickupLoading.style.display = "none";
       pickupError.style.display = "block";
     }
@@ -658,7 +690,7 @@
   }
 
   function validateStep2() {
-    if (!pickupOptionsLoaded) {
+    if (!pickupOptionsLoaded || pickupOptionsKey !== hidden.house_key.value) {
       return reportErrors([{ input: pickupDateSelect, kind: "invalid", message: STRINGS.pickup_options_error }]);
     }
     const errors = [];
@@ -700,7 +732,7 @@
       if (!validateStep1()) return;
       currentStep = 2;
       updateStepUI();
-      if (!pickupOptionsLoaded) {
+      if (!pickupOptionsLoaded || pickupOptionsKey !== hidden.house_key.value) {
         await loadPickupOptions();
       }
       return;
@@ -726,6 +758,7 @@
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (currentStep !== TOTAL_STEPS) return; // safety net: never submit early
     clearFieldErrors();
 
     if (!validateStep4()) return;
@@ -784,14 +817,29 @@
         }
       } else {
         setMessage(formError, STRINGS.order_failed);
+        formErrorKind = "order";
         submitBtn.disabled = false;
         submitBtn.textContent = STRINGS.submit || "";
       }
     } catch (err) {
       setMessage(formError, STRINGS.order_failed);
+      formErrorKind = "order";
       submitBtn.disabled = false;
       submitBtn.textContent = STRINGS.submit || "";
     }
+  });
+
+  // Enter in a field: advance to the next step, only submit on the last one.
+  // (Without this the browser clicks the hidden submit button on step 1/2 and
+  // the final-step validation complains about fields the user can't see.)
+  form.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.defaultPrevented || e.isComposing) return;
+    const t = e.target;
+    if (!t || (t.tagName !== "INPUT" && t.tagName !== "SELECT")) return;
+    if (t.type === "radio" || t.type === "checkbox") return;
+    e.preventDefault();
+    if (currentStep < TOTAL_STEPS) nextBtn.click();
+    else form.requestSubmit ? form.requestSubmit() : submitBtn.click();
   });
 
   updateStepUI();
